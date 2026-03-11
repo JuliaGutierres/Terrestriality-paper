@@ -12,10 +12,7 @@ library(DHARMa)
 library(rstatix)
 library(multcompView)
 
-getwd()
-testando o babadoS
-# Set working directory
-setwd("C:/Users/julia/Documents/Sandwich_Phd/Data")
+#setwd("C:/Users/julia/Documents/Sandwich_Phd/Data")
 
 # Load and clean data
 data_tb <- read_delim(
