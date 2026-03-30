@@ -12,7 +12,8 @@ library(DHARMa)
 library(rstatix)
 library(multcompView)
 
-#setwd("C:/Users/julia/Documents/Sandwich_Phd/Data")
+getwd()
+setwd("C:/Users/julia/Downloads")
 
 # Load and clean data
 data_tb <- read_delim(
@@ -418,6 +419,10 @@ model<- glm(terrestrial ~ sex_age + period + supplementation + general_local,
 
 summary(model)
 
+# GLM Diagnosis 
+simulationOutput <- simulateResiduals(fittedModel = mod2_ref, n=1000, plot = TRUE)
+plot(simulationOutput)
+
 # Plot model
 library(sjPlot)
 
@@ -426,7 +431,7 @@ plot_model(model,
            value.offset = .3,
            axis.labels = c(
              "general_localanthropic" = "Anthropic Area",
-             "supplementationyes"     = "Supplementation",
+             "supplementationyes"     = "Food provisioning",
              "perioddry"           = "Dry Season ",
              "sex_ageJU"             = "Juveniles",
              "sex_ageAF"             = "Adult Females"
@@ -439,9 +444,79 @@ plot_model(model,
 
 ggsave("model_coefficients.png", width = 8, height = 5, dpi = 300)
 
-# GLM Diagnosis 
-simulationOutput <- simulateResiduals(fittedModel = mod2_ref, n=1000, plot = TRUE)
-plot(simulationOutput)
+
+library(ggeffects)
+library(ggplot2)
+library(dplyr)
+library(patchwork)
+library(scales)
+
+
+color_main <- "#3B6FB6"
+
+theme_pub <- function() {
+  theme_classic(base_size = 14) +
+    theme(
+      text = element_text(family = "serif"),
+      axis.title = element_text(size = 14),
+      axis.text = element_text(size = 12, color = "black"),
+      panel.grid = element_blank(),
+      axis.line = element_line(color = "black"),
+      plot.tag = element_text(size = 16, face = "bold"),
+      plot.margin = margin(15, 15, 15, 15)
+    )
+}
+
+
+plot_marginal <- function(model, term, xlab) {
+  
+  pred <- ggpredict(model, terms = term) %>%
+    as.data.frame()
+  
+  ggplot(pred, aes(x = x, y = predicted)) +
+    
+    geom_point(size = 4, color = color_main) +
+    geom_errorbar(
+      aes(ymin = conf.low, ymax = conf.high),
+      width = 0.15,
+      linewidth = 0.7,
+      color = color_main
+    ) +
+    scale_y_continuous(
+      labels = percent_format(accuracy = 1),
+      limits = c(0, 1)
+    ) +
+    coord_cartesian(ylim = c(0, 0.55)) +
+    scale_x_discrete(expand = expansion(add = 0.3)) +
+    labs(
+      x = xlab,
+      y = "Predicted probability"
+    ) +
+    
+    theme_pub()
+}
+
+p1 <- plot_marginal(model, "sex_age", "Sex-age class")
+p2 <- plot_marginal(model, "period", "Season")
+p3 <- plot_marginal(model, "general_local", "Area")
+p4 <- plot_marginal(model, "supplementation", "Food provisioning")
+
+final_plot <- (p1 | p2) / (p3 | p4) +
+  plot_annotation(tag_levels = "A") &
+  theme(
+    plot.margin = margin(15, 15, 15, 15)
+  )
+
+print(final_plot)
+
+ggsave(
+  "Predicted.tiff",
+  final_plot,
+  width = 8,
+  height = 6,
+  dpi = 300,
+  compression = "lzw"
+)
 
 
 ###########################################################################
