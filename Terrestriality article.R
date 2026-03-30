@@ -467,14 +467,10 @@ theme_pub <- function() {
     )
 }
 
-
 plot_marginal <- function(model, term, xlab) {
-  
-  pred <- ggpredict(model, terms = term) %>%
+    pred <- ggpredict(model, terms = term) %>%
     as.data.frame()
-  
-  ggplot(pred, aes(x = x, y = predicted)) +
-    
+    ggplot(pred, aes(x = x, y = predicted)) +
     geom_point(size = 4, color = color_main) +
     geom_errorbar(
       aes(ymin = conf.low, ymax = conf.high),
