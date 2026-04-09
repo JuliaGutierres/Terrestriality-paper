@@ -13,7 +13,7 @@ library(rstatix)
 library(multcompView)
 
 getwd()
-setwd("C:/Users/julia/Downloads")
+setwd("C:/Users/jgutierres/Downloads")
 
 # Load and clean data
 data_tb <- read_delim(
@@ -467,10 +467,14 @@ theme_pub <- function() {
     )
 }
 
+
 plot_marginal <- function(model, term, xlab) {
-    pred <- ggpredict(model, terms = term) %>%
+  
+  pred <- ggpredict(model, terms = term) %>%
     as.data.frame()
-    ggplot(pred, aes(x = x, y = predicted)) +
+  
+  ggplot(pred, aes(x = x, y = predicted)) +
+    
     geom_point(size = 4, color = color_main) +
     geom_errorbar(
       aes(ymin = conf.low, ymax = conf.high),
@@ -495,7 +499,7 @@ plot_marginal <- function(model, term, xlab) {
 p1 <- plot_marginal(model, "sex_age", "Sex-age class")
 p2 <- plot_marginal(model, "period", "Season")
 p3 <- plot_marginal(model, "general_local", "Area")
-p4 <- plot_marginal(model, "supplementation", "Food provisioning")
+p4 <- plot_marginal(model, "supplementation", "Food supplementation")
 
 final_plot <- (p1 | p2) / (p3 | p4) +
   plot_annotation(tag_levels = "A") &
@@ -756,5 +760,120 @@ ggplot(plot_data, aes(x = reorder(legend, -mean_prop_terrestrial),
     axis.title = element_text(face = "bold"),
     panel.grid.major.x = element_blank()
   )
+
+###################### TOOL USE #####################
+
+# Loading data 
+seasons <- read_excel("C:/Users/jgutierres/Downloads/tool_use.xlsx", sheet = "c3")
+
+
+# Comparing season
+tabela <- table(seasons$epoca, seasons$manip)
+chisq.test(tabela)        
+
+# Season balanced   
+rainy_events <- 37
+dry_events <- 83
+rainy_days <- 331
+dry_days <- 271
+
+
+success <- c(rainy_events, dry_events)      # c(37, 83)
+trials  <- c(rainy_days,   dry_days)        # c(331, 271)
+
+# Proportion test 
+prop.test(success, trials)
+
+
+
+### Food provision ####
+
+data_local <- seasons %>%
+  mutate(provisao = if_else(as.Date(data) <= as.Date("2024-07-31"), "yes", "no"))
+
+table(data_local$provisao)
+
+# Chi-squared test for tool use and provisioning
+teste_qui <- chisq.test(table(data_local$provisao))
+print(teste_qui)
+
+
+# Food provision balanced 
+
+resumo_provisao <- seasons %>%
+  mutate(
+    data     = as_date(data),
+    provisao = if_else(data <= as_date("2024-07-31"), "yes", "no")
+  ) %>%
+  group_by(provisao) %>%
+  summarise(
+    eventos = n(),
+    dias = as.integer(max(data) - min(data) + 1),
+    taxa_dia = eventos / dias,
+    taxa_100dias = taxa_dia * 100,
+    .groups = "drop"
+  )
+
+print(resumo_provisao)
+
+prop.test(
+  x = resumo_provisao$eventos,
+  n = resumo_provisao$dias
+)
+
+
+# Preparing data
+rate_season <- data.frame(
+  Condition = c("Rainy", "Dry"),
+  Rate = c(37/331, 83/271) * 100, 
+  Category = "Season"
+)
+
+
+rate_supp <- resumo_provisao %>%
+  mutate(
+    Condition = ifelse(provisao == "yes", "Yes", "No"),
+    Rate = taxa_100dias, 
+    Category = "Supplementation"
+  ) %>%
+  select(Condition, Rate, Category)
+
+# Plot
+plot_data <- bind_rows(rate_season, rate_supp) %>%
+  mutate(
+    Category = factor(Category, levels = c("Season", "Supplementation")),
+    Condition = factor(Condition, levels = c("Dry", "Rainy", "No", "Yes"))
+  )
+
+### Plot  ###
+ggplot(plot_data, aes(x = Condition, y = Rate)) +
+  geom_bar(fill = "gray40",
+           color = "black",
+           stat = "identity",
+           width = 0.4) +
+  facet_wrap(~ Category, 
+             scales = "free_x", 
+             nrow = 1, 
+             strip.position = "bottom") +
+  labs(
+    x = "",
+    y = "Tool-use rate"
+  ) +
+  theme_minimal(base_size = 16) +
+  theme(
+    strip.placement = "outside",
+    strip.text = element_text(face = "bold", size = 14),
+    panel.spacing = unit(1, "cm"),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    axis.line.y =  element_blank(),
+    axis.text.x = element_text(face = "bold")
+  ) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1)))
+
+
+ggsave("tool_use_rate.png", width = 10, height = 4, dpi = 300, bg = "white")
+  ) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.05)))  
 
 
